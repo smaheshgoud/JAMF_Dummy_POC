@@ -1,0 +1,48 @@
+pipeline {
+    agent any
+    
+    parameters {
+        string(name: 'ENDPOINT_URLS', defaultValue: 'endpoint1,endpoint2', description: 'Comma-separated list of endpoint URLs')
+    }
+
+    stages {
+        stage('Fetch Data for Endpoints') {
+            steps {
+                script {
+                    // Split endpoint URLs
+                    def endpointUrls = params.ENDPOINT_URLS.split(',')
+                    
+                    // Iterate over each endpoint URL
+                    for (def endpointUrl : endpointUrls) {
+                        echo "Fetching data for ${endpointUrl}"
+                        
+                        // Fetch data for endpoint
+                        def endpointData = fetchData(endpointUrl)
+                        
+                        // Extract IDs from endpoint data
+                        def ids = extractIds(endpointData)
+                        
+                        // Iterate over each ID and fetch data
+                        for (def id : ids) {
+                            echo "Fetching data for ID: ${id}"
+                            def idData = fetchData("${endpointUrl}/${id}")
+                            // Process data for ID
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Function to fetch data for an endpoint
+    def fetchData(endpointUrl) {
+        // Example curl command to fetch data
+        return sh(script: "curl -s ${endpointUrl}", returnStdout: true).trim()
+    }
+    
+    // Function to extract IDs from endpoint data
+    def extractIds(endpointData) {
+        // Example logic to extract IDs from data
+        return endpointData.findAll { it.contains('id:') }.collect { it.split(':')[1].trim() }
+    }
+}
