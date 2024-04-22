@@ -1,0 +1,88 @@
+pipeline {
+    agent any
+
+    environment {
+        CLIENT_ID = '2b7ea5e9-cbab-4f60-97e3-32eaefeee768'
+        CLIENT_SECRET = 'o0dwi8E0XMaYtX760LB05csjHeJoGHKldTi4R5x7NKwLMl25gYenpMAlRDerA6G1'
+        JAMF_URL = 'https://dummy.jamfcloud.com'
+        ACCESS_TOKEN = ''
+    }
+
+    stages {
+        stage('Hello') {
+            steps {
+                echo 'Hello World'
+            }
+        }
+        stage('Curl Statement') {
+            steps {
+                script {
+                    echo "env accessToken: ${env.ACCESS_TOKEN}"
+                    if (env.ACCESS_TOKEN == null) {
+                        ACCESS_TOKEN = getToken(JAMF_URL)
+                    }
+   //                 if (env.ACCESS_TOKEN) {
+     
+//                        def accessToken = getToken(JAMF_URL)
+                        
+//                        sh response > response_1
+//                        echo $response > access_token_resp.txt
+                    // Extract access_token from the response
+//                        def accessToken1 = sh(script: "echo $response | grep -oP '(?<="access_token":")[^"]+'")
+                        // echo $accessToken
+                        // def accessToken = response =~ /"access_token":"([^"]+)"/
+                        if (ACCESS_TOKEN) {
+                            echo "Access Token: ${ACCESS_TOKEN}"
+                        // Fetch data using the access token
+                            def dataResponse = fetchData(ACCESS_TOKEN)
+                        } else {
+                            error "Failed to extract access token from the response"
+                        }
+                }
+                }
+            }
+    }
+}
+    def getToken(JAMF_URL) {
+        stage('Get AccessToken') {
+            def response = sh(script: "curl -X 'POST' '${JAMF_URL}/api/oauth/token' -H 'accept: application/x-www-form-urlencoded' -d 'grant_type=client_credentials&client_id=2b7ea5e9-cbab-4f60-97e3-32eaefeee768&client_secret=o0dwi8E0XMaYtX760LB05csjHeJoGHKldTi4R5x7NKwLMl25gYenpMAlRDerA6G1'", returnStdout: true).trim()
+            echo "Hello Response: ${response}"
+            def accessToken = response =~ /"access_token":"([^"]+)"/
+            if (accessToken) {
+                return accessToken[0][1]
+            }
+            else {
+              error "Failed to get access token"
+            }
+              
+        }
+    }
+    // Function to fetch data using access token
+    def fetchData(accessToken) {
+        stage('Fetch Data') {
+                script {
+                    def fetchDataResponse = sh(script: "curl -H 'Authorization: Bearer ${ACCESS_TOKEN}' https://dummy.jamfcloud.com/JSSResource/advancedcomputersearches", returnStdout: true).trim()
+                    echo "Fetched Data: ${fetchDataResponse}"
+                    if (fetchDataResponse.startsWith('{')) {
+                        echo "Response is in JSON format."
+//                        def httpStatus = sh(script: "echo '${fetchDataResponse}' | jq -r '.httpStatus'", returnStdout: true).trim()
+                        def httpStatus = getHttpStatus(fetchDataResponse)
+                        if (httpStatus == '401') {
+                            echo "HTTP Status: 401 Unauthorized"
+                            // Logic to handle the 401 response
+                        }
+            }
+        }
+    }
+    }
+        
+ 
+// Function to extract HTTP status using grep and awk
+def getHttpStatus(response) {
+    def matcher = response =~ /"httpStatus"\s*:\s*(\d+)/
+    if (matcher) {
+        return matcher[0][1]
+    } else {
+        return null
+    }
+}
